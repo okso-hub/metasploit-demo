@@ -33,10 +33,10 @@ docker attach msf-attacker  # an die laufende msfconsole hängen
 In der `msfconsole`:
 
 ```
-db_nmap -sV 10.10.0.20
+nmap -sV 10.10.0.20
 ```
 
-`db_nmap` ist nmap, integriert in Metasploit — Ergebnisse landen direkt in der internen DB. `-sV` macht Service-/Versions-Erkennung. Wir sehen: Port 139 + 445 offen, Service `Samba smbd`.
+`nmap` läuft direkt aus der msfconsole heraus. `-sV` macht Service-/Versions-Erkennung. Wir sehen: Port 139 + 445 offen, Service `Samba smbd`.
 
 ### 2. Schwachstelle prüfen
 
