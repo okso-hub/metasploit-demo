@@ -1,0 +1,25 @@
+services:
+  attacker:
+    image: metasploitframework/metasploit-framework:latest
+    container_name: msf-attacker
+    stdin_open: true
+    tty: true
+    networks:
+      lab:
+        ipv4_address: 10.10.0.10
+    command: ./msfconsole
+
+  victim:
+    image: medicean/vulapps:s_samba_1
+    container_name: smb-victim
+    platform: linux/amd64
+    networks:
+      lab:
+        ipv4_address: 10.10.0.20
+
+networks:
+  lab:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.10.0.0/24
