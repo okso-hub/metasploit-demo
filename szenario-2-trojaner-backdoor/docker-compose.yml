@@ -1,0 +1,34 @@
+services:
+  attacker:
+    image: metasploitframework/metasploit-framework:latest
+    container_name: trojan-attacker
+    stdin_open: true
+    tty: true
+    volumes:
+      - transfer:/transfer
+    networks:
+      lab:
+        ipv4_address: 10.20.0.10
+    command: ./msfconsole
+
+  victim:
+    build:
+      context: ./victim
+      dockerfile: Dockerfile
+    container_name: trojan-victim
+    volumes:
+      - transfer:/transfer
+    networks:
+      lab:
+        ipv4_address: 10.20.0.20
+    command: cron -f   # Cron-Daemon im Vordergrund (haelt Container am Leben + ermoeglicht Persistenz)
+
+volumes:
+  transfer:            # geteilter Ordner: simuliert E-Mail-Anhang / Download / USB-Stick
+
+networks:
+  lab:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.20.0.0/24
