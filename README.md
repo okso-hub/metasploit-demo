@@ -8,7 +8,7 @@ Drei Live-Demos fuer eine Praesentation zu Penetration Testing mit Metasploit. J
 |---|----------|-----------------|--------|
 | 1 | [Samba-Exploit mit Datendiebstahl](szenario-1-samba-exploit/) | SambaCry (CVE-2017-7494) → Root-Shell → Daten exfiltrieren | fertig |
 | 2 | [Trojaner einspielen (Backdoor)](szenario-2-trojaner-backdoor/) | msfvenom-Trojaner → Meterpreter-Session → Cron-Persistenz | fertig |
-| 3 | SSH Brute-Force | Hydra/Metasploit Passwort-Angriff auf SSH | geplant |
+| 3 | [SSH Brute-Force](szenario-3-ssh-bruteforce/) | `ssh_login` Passwort-Angriff → Shell → `sudo`-Eskalation zu root | fertig |
 
 ## Schnellstart
 

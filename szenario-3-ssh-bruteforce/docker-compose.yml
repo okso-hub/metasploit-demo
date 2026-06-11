@@ -1,0 +1,28 @@
+services:
+  attacker:
+    image: metasploitframework/metasploit-framework:latest
+    container_name: ssh-attacker
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./wordlists:/wordlists:ro   # Userliste + Passwortliste fuer den Brute-Force
+    networks:
+      lab:
+        ipv4_address: 10.30.0.10
+    command: ./msfconsole
+
+  victim:
+    build:
+      context: ./victim
+      dockerfile: Dockerfile
+    container_name: ssh-victim
+    networks:
+      lab:
+        ipv4_address: 10.30.0.20
+
+networks:
+  lab:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.30.0.0/24
