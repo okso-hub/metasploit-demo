@@ -9,7 +9,7 @@ services:
     networks:
       lab:
         ipv4_address: 10.20.0.10
-    command: ./msfconsole
+    command: tail -f /dev/null   # Container nur am Leben halten; msfvenom/msfconsole startet man im Angreifer-Terminal
 
   victim:
     build:
