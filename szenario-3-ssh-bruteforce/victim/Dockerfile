@@ -10,7 +10,7 @@ RUN apt-get update \
 # Absichtlich SCHWACHE Accounts (das ist der Sinn der Demo):
 #   admin       -> in der sudo-Gruppe (Eskalation moeglich)
 #   mitarbeiter -> normaler User
-RUN useradd -m -s /bin/bash admin       && echo 'admin:password123'  | chpasswd && usermod -aG sudo admin \
+RUN useradd -m -s /bin/bash admin       && echo 'admin:password1'    | chpasswd && usermod -aG sudo admin \
  && useradd -m -s /bin/bash mitarbeiter && echo 'mitarbeiter:hallo123' | chpasswd
 
 # Passwort-Login erlauben, root-Login sperren (realistisch)
